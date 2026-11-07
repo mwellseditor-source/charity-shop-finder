@@ -277,5 +277,20 @@ showShops(WEYMOUTH, [50.607, -2.454], 'Weymouth');
 map.setView([50.607, -2.454], 13);
 loadCommunity();
 </script>
+<div id="iosHint" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#0f766e;color:#fff;padding:10px 14px;font-size:13px;line-height:1.4;">
+Add to your home screen: tap the Share button (the square with an arrow), then choose "Add to Home Screen".
+<button onclick="document.getElementById('iosHint').remove()" style="float:right;background:none;border:none;color:#fff;font-size:16px;padding:0 2px">✕</button>
+</div>
+<script>
+(function(){
+  var ua = navigator.userAgent || '';
+  var iOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (iOS && !window.navigator.standalone) {
+    var el = document.getElementById('iosHint');
+    el.style.display = 'block';
+    setTimeout(function(){ if (el.parentNode) el.remove(); }, 15000);
+  }
+})();
+</script>
 </body>
 </html>
