@@ -36,6 +36,8 @@ main{position:relative;flex:1;min-height:0}
 #detail h2{font-size:20px;font-weight:800;padding-right:36px}
 #detail .op{color:var(--teal);font-weight:600;font-size:14px;margin-top:2px}
 #detail p{font-size:14.5px;margin-top:8px;color:#41473f}
+#detail .btnrow{display:flex;gap:8px;margin-top:10px}
+#detail .dirbtn{display:inline-block;background:var(--teal);color:#fff;font-weight:700;font-size:14px;padding:10px 16px;border-radius:12px;text-decoration:none}
 #detail h3{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:#6b6455;margin:16px 0 8px}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{font-size:14px;padding:8px 13px;border-radius:999px;border:1.5px solid #d8cfbc;background:#fff;color:var(--ink)}
@@ -170,6 +172,7 @@ function showDetail(e){
     '<p>' + esc(where) + '</p>' +
     '<p>Hours: ' + (e.hours ? esc(fmtHours(e.hours)) : 'not listed yet') + (e.checked ? ' <small>(checked Nov 2026)</small>' : '') + '</p>' +(e.closed ? '<p class=\"closed\">' + esc(e.closed) + '</p>' : '') +
     (e.phone ? '<p><a href="tel:' + esc(e.phone) + '">' + esc(e.phone) + '</a></p>' : '') +
+    '<div class="btnrow"><a class="dirbtn" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=' + (e.lat != null && e.lon != null ? e.lat + ',' + e.lon : encodeURIComponent([e.addr, e.city, e.postcode].filter(Boolean).join(', ') || e.name)) + '">Directions ↗</a></div>' +
     (e.website ? '<p><a target="_blank" rel="noopener" href="' + esc(e.website) + '">Website ↗</a></p>' : '') +
     '<h3>What they usually stock</h3>' +
     '<div class="chips">' + PRESETS.map(c => '<button class="chip' + (saved.includes(c)?' on':'') + '" data-c="' + esc(c) + '">' + esc(c) + '</button>').join('') +
