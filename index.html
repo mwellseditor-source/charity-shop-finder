@@ -229,29 +229,48 @@ async function searchTown(q){
   try { const c = JSON.parse(localStorage.getItem(key) || 'null');
     if (c && c.shops) { showShops(c.shops, c.center, q); status(q + ' — ' + c.shops.length + ' shops'); return; } } catch(e) {}
   busy(true);
+  let shown = false;
   try {
     status('finding ' + q + '…');
-    let geo;
-    try { geo = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=gb&q=' + encodeURIComponent(q)).then(r => r.json()); }
-    catch(e) { status('couldn\'t reach the map data — check your connection'); return; }
-    if (!geo.length) { status('couldn\'t find "' + q + '" — try the full town name'); return; }
+    const geoKey = 'csf-geo:' + q.toLowerCase();
+    let geo = null;
+    try { geo = JSON.parse(localStorage.getItem(geoKey) || 'null'); } catch(e) {}
+    if (!geo || !geo.length) {
+      try { geo = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=gb&q=' + encodeURIComponent(q)).then(r => r.json()); }
+      catch(e) { status('couldn\'t reach the map data — check your connection'); return; }
+      if (geo && geo.length) { try { localStorage.setItem(geoKey, JSON.stringify(geo)); } catch(e) {} }
+    }
+    if (!geo || !geo.length) { status('couldn\'t find "' + q + '" — try the full town name'); return; }
     const bb = geo[0].boundingbox; // [south, north, west, east]
     const bbox = bb[0] + ',' + bb[2] + ',' + bb[1] + ',' + bb[3];
-    status('searching for charity shops…');
-    const query = '[out:json][timeout:40];(nwr["shop"="charity"](' + bbox + ');nwr["shop"="second_hand"]["second_hand"~"charity",i](' + bbox + ');nwr["shop"="second_hand"]["operator"~"charity|hospice|oxfam|bhf|age uk|cancer|salvation|st margaret",i](' + bbox + '););out center tags;';
+    const center = [+geo[0].lat, +geo[0].lon];
+    // show the saved copy right away so there is something on screen while the live search runs
+    const fallback = inBbox(bb);
+    if (fallback.length) { showShops(fallback, center, q + ' (saved copy)'); status(q + ' — ' + fallback.length + ' shops (saved copy, live search running…)'); shown = true; }
+    else status('searching for charity shops…');
+    const query = '[out:json][timeout:25];(nwr["shop"="charity"](' + bbox + ');nwr["shop"="second_hand"]["second_hand"~"charity",i](' + bbox + ');nwr["shop"="second_hand"]["operator"~"charity|hospice|oxfam|bhf|age uk|cancer|salvation|st margaret",i](' + bbox + '););out center tags;';
     let res = null;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 30000);
     for (const url of ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter']) {
-      try { res = await fetch(url, {method:'POST', body:'data=' + encodeURIComponent(query)}).then(r => r.json()); break; } catch(e) {}
+      try { res = await fetch(url, {method:'POST', body:'data=' + encodeURIComponent(query), signal: ctrl.signal}).then(r => r.json()); break; } catch(e) {}
     }
+    clearTimeout(timer);
     const els = res ? (res.elements || []).map(e => {
       const t = e.tags || {};
       return { id: e.type[0] + e.id, name: t.name || '(unnamed shop)', operator: t.operator || '', hours: t.opening_hours || '',
         addr: [t['addr:housenumber'], t['addr:street']].filter(Boolean).join(' '), city: t['addr:city'] || '', postcode: t['addr:postcode'] || '',
         phone: t.phone || '', website: t.website || '', lat: (e.lat !== undefined ? e.lat : (e.center || {}).lat), lon: (e.lon !== undefined ? e.lon : (e.center || {}).lon) };
-    }).filter(e => e.lat !== undefined) : inBbox(bb);
-    if (!els.length) { status('no charity shops mapped yet in ' + q + ' — if you know one, tap + Add a shop'); return; }
-    if (res) { try { localStorage.setItem(key, JSON.stringify({center: [+geo[0].lat, +geo[0].lon], shops: els})); } catch(e) {} }
-    showShops(els, [+geo[0].lat, +geo[0].lon], q + (res ? '' : ' (saved copy)'));
+    }).filter(e => e.lat !== undefined) : [];
+    if (els.length) {
+      try { localStorage.setItem(key, JSON.stringify({center: center, shops: els})); } catch(e) {}
+      showShops(els, center, q);
+      status(q + ' — ' + els.length + ' shops');
+    } else if (shown) {
+      status(q + ' — ' + fallback.length + ' shops (saved copy)');
+    } else {
+      status('no charity shops mapped yet in ' + q + ' — if you know one, tap + Add a shop');
+    }
   } finally { busy(false); }
 }
 function inBbox(bb){ return UK_SHOPS.filter(s => s.lat >= +bb[0] && s.lat <= +bb[1] && s.lon >= +bb[2] && s.lon <= +bb[3]).map(s => Object.assign({}, s, {id: s.id || ('k' + s.lat.toFixed(4) + s.lon.toFixed(4))})); }
